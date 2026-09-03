@@ -346,6 +346,12 @@ TEST(EstimateBACovariance, NonTrivialFrameDoesNotThrow) {
   auto* ceres_ba = dynamic_cast<CeresBundleAdjuster*>(bundle_adjuster.get());
   ASSERT_NE(ceres_ba, nullptr);
 
+  // One entry per frame, not per image: the 6 images share 3 rig_from_world
+  // blocks, contributed only by each frame's reference image.
+  const std::vector<internal::PoseParam> poses =
+      internal::GetPoseParams(reconstruction, *ceres_ba->Problem());
+  ASSERT_EQ(poses.size(), options.num_frames_per_rig);
+
   BACovarianceOptions cov_options;
   cov_options.params = BACovarianceOptions::Params::POINTS;
   const std::optional<BACovariance> cov =

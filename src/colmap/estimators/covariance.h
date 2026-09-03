@@ -61,7 +61,8 @@ struct BACovariance {
 
   // Tangent space covariance in the order [rotation, translation]. If some
   // dimensions are kept constant, the respective rows/columns are omitted.
-  // Returns null if image is not a variable in the problem.
+  // Returns null if image is not a variable in the problem. Non-reference
+  // sensors have no entry either; query the frame's reference image instead.
   std::optional<Eigen::MatrixXd> GetCamCovFromWorld(image_t image_id) const;
   std::optional<Eigen::MatrixXd> GetCamCrossCovFromWorld(
       image_t image_id1, image_t image_id2) const;
