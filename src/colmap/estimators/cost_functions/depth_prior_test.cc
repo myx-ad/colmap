@@ -157,7 +157,7 @@ TEST(RigScaledDepthErrorConstantRigCostFunctor, MatchesComposedPose) {
   const double mono_depth = 3.0;
   const Rigid3d cam_from_rig(
       Eigen::Quaterniond(Eigen::AngleAxisd(0.4, Eigen::Vector3d::UnitY())),
-      Eigen::Vector3d(0, 0, 0));
+      Eigen::Vector3d(0.2, -0.1, 0.3));
   const Rigid3d rig_from_world(
       Eigen::Quaterniond(Eigen::AngleAxisd(0.1, Eigen::Vector3d::UnitX())),
       Eigen::Vector3d(1, 2, 3));
@@ -214,7 +214,7 @@ TEST(RigLogScaledDepthErrorConstantRigCostFunctor, MatchesComposedPose) {
   const double mono_depth = 3.0;
   const Rigid3d cam_from_rig(
       Eigen::Quaterniond(Eigen::AngleAxisd(-0.7, Eigen::Vector3d::UnitX())),
-      Eigen::Vector3d(0, 0, 0));
+      Eigen::Vector3d(-0.15, 0.25, 0.4));
   const Rigid3d rig_from_world(
       Eigen::Quaterniond(Eigen::AngleAxisd(0.3, Eigen::Vector3d::UnitY())),
       Eigen::Vector3d(0.5, -1, 4));
