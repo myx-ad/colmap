@@ -1202,14 +1202,30 @@ void DepthPriorBundleAdjuster(
   THROW_CHECK_EQ(point3D_ids.size(), loss_types.size());
 
   Image& image = reconstruction.Image(image_id);
+  // The pose block is always the frame's; for a non-reference sensor the fixed
+  // cam_from_rig is baked into the functor instead of entering the problem.
   double* pose_params = image.FramePtr()->RigFromWorld().params.data();
+  const bool is_ref = image.IsRefInFrame();
+  const Rigid3d cam_from_rig =
+      is_ref ? Rigid3d()
+             : image.FramePtr()->RigPtr()->SensorFromRig(
+                   image.CameraPtr()->SensorId());
 
   for (size_t i = 0; i < point3D_ids.size(); ++i) {
     Point3D& point3D = reconstruction.Point3D(point3D_ids[i]);
 
-    ceres::CostFunction* cost_function =
-        logloss ? LogScaledDepthErrorCostFunctor::Create(depths[i])
-                : ScaledDepthErrorCostFunctor::Create(depths[i]);
+    ceres::CostFunction* cost_function;
+    if (is_ref) {
+      cost_function = logloss
+                          ? LogScaledDepthErrorCostFunctor::Create(depths[i])
+                          : ScaledDepthErrorCostFunctor::Create(depths[i]);
+    } else {
+      cost_function =
+          logloss ? RigLogScaledDepthErrorConstantRigCostFunctor::Create(
+                        cam_from_rig, depths[i])
+                  : RigScaledDepthErrorConstantRigCostFunctor::Create(
+                        cam_from_rig, depths[i]);
+    }
 
     CeresBundleAdjustmentOptions loss_opts;
     loss_opts.loss_function_type = loss_types[i];

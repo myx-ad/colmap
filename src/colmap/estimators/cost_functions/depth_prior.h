@@ -113,4 +113,66 @@ struct LogScaledDepthErrorCostFunctor
   const double depth_;
 };
 
+// Depth prior for a sensor that is not its frame's reference. The pose block is
+// the frame's rig_from_world; the fixed cam_from_rig is baked in, so the
+// residual still takes one variable pose block.
+// Params: rig_from_world[7], point3D[3], shift_scale[2]
+struct RigScaledDepthErrorConstantRigCostFunctor
+    : public AutoDiffCostFunctor<RigScaledDepthErrorConstantRigCostFunctor,
+                                 1,
+                                 7,
+                                 3,
+                                 2> {
+  RigScaledDepthErrorConstantRigCostFunctor(const Rigid3d& cam_from_rig,
+                                            double depth)
+      : cam_from_rig_(cam_from_rig), depth_cost_(depth) {}
+
+  template <typename T>
+  bool operator()(const T* const rig_from_world,
+                  const T* const point3D,
+                  const T* const shift_scale,
+                  T* residuals) const {
+    const Eigen::Matrix<T, 3, 1> point3D_in_rig =
+        EigenQuaternionMap<T>(rig_from_world) * EigenVector3Map<T>(point3D) +
+        EigenVector3Map<T>(rig_from_world + 4);
+    const Eigen::Matrix<T, 7, 1> cam_from_rig = cam_from_rig_.params.cast<T>();
+    return depth_cost_(
+        cam_from_rig.data(), point3D_in_rig.data(), shift_scale, residuals);
+  }
+
+ private:
+  const Rigid3d cam_from_rig_;
+  const ScaledDepthErrorCostFunctor depth_cost_;
+};
+
+// Log-space counterpart of RigScaledDepthErrorConstantRigCostFunctor.
+// Params: rig_from_world[7], point3D[3], shift_scale[2]
+struct RigLogScaledDepthErrorConstantRigCostFunctor
+    : public AutoDiffCostFunctor<RigLogScaledDepthErrorConstantRigCostFunctor,
+                                 1,
+                                 7,
+                                 3,
+                                 2> {
+  RigLogScaledDepthErrorConstantRigCostFunctor(const Rigid3d& cam_from_rig,
+                                               double depth)
+      : cam_from_rig_(cam_from_rig), depth_cost_(depth) {}
+
+  template <typename T>
+  bool operator()(const T* const rig_from_world,
+                  const T* const point3D,
+                  const T* const shift_scale,
+                  T* residuals) const {
+    const Eigen::Matrix<T, 3, 1> point3D_in_rig =
+        EigenQuaternionMap<T>(rig_from_world) * EigenVector3Map<T>(point3D) +
+        EigenVector3Map<T>(rig_from_world + 4);
+    const Eigen::Matrix<T, 7, 1> cam_from_rig = cam_from_rig_.params.cast<T>();
+    return depth_cost_(
+        cam_from_rig.data(), point3D_in_rig.data(), shift_scale, residuals);
+  }
+
+ private:
+  const Rigid3d cam_from_rig_;
+  const LogScaledDepthErrorCostFunctor depth_cost_;
+};
+
 }  // namespace colmap

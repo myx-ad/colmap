@@ -7,6 +7,9 @@
 #include "colmap/estimators/cost_functions/pose_prior.h"
 #include "colmap/geometry/rigid3.h"
 
+#include <limits>
+#include <memory>
+
 #include <ceres/ceres.h>
 #include <gtest/gtest.h>
 
@@ -148,6 +151,94 @@ TEST(HeightPriorCostFunctor, InvSigmaScalesResidual) {
   cf1->Evaluate(params, &r1, nullptr);
   cf3->Evaluate(params, &r3, nullptr);
   EXPECT_NEAR(r3, 3.0 * r1, 1e-10);
+}
+
+TEST(RigScaledDepthErrorConstantRigCostFunctor, MatchesComposedPose) {
+  const double mono_depth = 3.0;
+  const Rigid3d cam_from_rig(
+      Eigen::Quaterniond(Eigen::AngleAxisd(0.4, Eigen::Vector3d::UnitY())),
+      Eigen::Vector3d(0, 0, 0));
+  const Rigid3d rig_from_world(
+      Eigen::Quaterniond(Eigen::AngleAxisd(0.1, Eigen::Vector3d::UnitX())),
+      Eigen::Vector3d(1, 2, 3));
+  const Rigid3d cam_from_world = cam_from_rig * rig_from_world;
+
+  std::unique_ptr<ceres::CostFunction> composed(
+      ScaledDepthErrorCostFunctor::Create(mono_depth));
+  std::unique_ptr<ceres::CostFunction> rig(
+      RigScaledDepthErrorConstantRigCostFunctor::Create(cam_from_rig,
+                                                        mono_depth));
+
+  Eigen::Vector3d point3D(0.5, -0.3, 4.0);
+  Eigen::Vector2d shift_scale(0.1, 0.2);
+
+  double residual_composed = std::numeric_limits<double>::quiet_NaN();
+  double residual_rig = std::numeric_limits<double>::quiet_NaN();
+  const double* params_composed[3] = {
+      cam_from_world.params.data(), point3D.data(), shift_scale.data()};
+  const double* params_rig[3] = {
+      rig_from_world.params.data(), point3D.data(), shift_scale.data()};
+
+  EXPECT_TRUE(composed->Evaluate(params_composed, &residual_composed, nullptr));
+  EXPECT_TRUE(rig->Evaluate(params_rig, &residual_rig, nullptr));
+  EXPECT_NEAR(residual_composed, residual_rig, 1e-10);
+}
+
+TEST(RigScaledDepthErrorConstantRigCostFunctor,
+     IdentityRigMatchesPlainFunctor) {
+  const double mono_depth = 2.5;
+  const Rigid3d identity;
+  const Rigid3d rig_from_world(
+      Eigen::Quaterniond(Eigen::AngleAxisd(0.2, Eigen::Vector3d::UnitZ())),
+      Eigen::Vector3d(-1, 0.5, 2));
+
+  std::unique_ptr<ceres::CostFunction> plain(
+      ScaledDepthErrorCostFunctor::Create(mono_depth));
+  std::unique_ptr<ceres::CostFunction> rig(
+      RigScaledDepthErrorConstantRigCostFunctor::Create(identity, mono_depth));
+
+  Eigen::Vector3d point3D(0.1, 0.2, 5.0);
+  Eigen::Vector2d shift_scale(0.0, 0.0);
+
+  double residual_plain = std::numeric_limits<double>::quiet_NaN();
+  double residual_rig = std::numeric_limits<double>::quiet_NaN();
+  const double* params[3] = {
+      rig_from_world.params.data(), point3D.data(), shift_scale.data()};
+
+  EXPECT_TRUE(plain->Evaluate(params, &residual_plain, nullptr));
+  EXPECT_TRUE(rig->Evaluate(params, &residual_rig, nullptr));
+  EXPECT_NEAR(residual_plain, residual_rig, 1e-10);
+}
+
+TEST(RigLogScaledDepthErrorConstantRigCostFunctor, MatchesComposedPose) {
+  const double mono_depth = 3.0;
+  const Rigid3d cam_from_rig(
+      Eigen::Quaterniond(Eigen::AngleAxisd(-0.7, Eigen::Vector3d::UnitX())),
+      Eigen::Vector3d(0, 0, 0));
+  const Rigid3d rig_from_world(
+      Eigen::Quaterniond(Eigen::AngleAxisd(0.3, Eigen::Vector3d::UnitY())),
+      Eigen::Vector3d(0.5, -1, 4));
+  const Rigid3d cam_from_world = cam_from_rig * rig_from_world;
+
+  std::unique_ptr<ceres::CostFunction> composed(
+      LogScaledDepthErrorCostFunctor::Create(mono_depth));
+  std::unique_ptr<ceres::CostFunction> rig(
+      RigLogScaledDepthErrorConstantRigCostFunctor::Create(cam_from_rig,
+                                                           mono_depth));
+
+  Eigen::Vector3d point3D(0.2, 0.1, 6.0);
+  Eigen::Vector2d shift_scale(0.0, 0.15);
+
+  double residual_composed = std::numeric_limits<double>::quiet_NaN();
+  double residual_rig = std::numeric_limits<double>::quiet_NaN();
+  const double* params_composed[3] = {
+      cam_from_world.params.data(), point3D.data(), shift_scale.data()};
+  const double* params_rig[3] = {
+      rig_from_world.params.data(), point3D.data(), shift_scale.data()};
+
+  EXPECT_TRUE(composed->Evaluate(params_composed, &residual_composed, nullptr));
+  EXPECT_TRUE(rig->Evaluate(params_rig, &residual_rig, nullptr));
+  EXPECT_NEAR(residual_composed, residual_rig, 1e-10);
 }
 
 }  // namespace
