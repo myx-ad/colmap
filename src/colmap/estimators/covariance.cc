@@ -407,6 +407,9 @@ std::vector<PoseParam> GetPoseParams(const Reconstruction& reconstruction,
   std::vector<PoseParam> params;
   params.reserve(reconstruction.NumImages());
   for (const auto& [image_id, image] : reconstruction.Images()) {
+    if (!image.HasPose()) {
+      continue;  // no pose, so no parameter block in the problem either
+    }
     // TODO(jsch): Add support for non-trivial frames.
     THROW_CHECK(image.IsRefInFrame());
     const Rigid3d& cam_from_world = image.FramePtr()->RigFromWorld();
