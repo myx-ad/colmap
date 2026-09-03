@@ -325,5 +325,37 @@ INSTANTIATE_TEST_SUITE_P(
           return std::make_pair(options, test_options);
         }()));
 
+TEST(EstimateBACovariance, NonTrivialFrameDoesNotThrow) {
+  SetPRNGSeed(42);
+
+  Reconstruction reconstruction;
+  SyntheticDatasetOptions options;
+  options.num_rigs = 1;
+  options.num_cameras_per_rig = 2;
+  options.num_frames_per_rig = 3;
+  options.num_points3D = 100;
+  SynthesizeDataset(options, &reconstruction);
+
+  BundleAdjustmentConfig config;
+  for (const image_t image_id : reconstruction.RegImageIds()) {
+    config.AddImage(image_id);
+  }
+  BundleAdjustmentOptions ba_options;
+  std::unique_ptr<BundleAdjuster> bundle_adjuster =
+      CreateDefaultBundleAdjuster(ba_options, config, reconstruction);
+  auto* ceres_ba = dynamic_cast<CeresBundleAdjuster*>(bundle_adjuster.get());
+  ASSERT_NE(ceres_ba, nullptr);
+
+  BACovarianceOptions cov_options;
+  cov_options.params = BACovarianceOptions::Params::POINTS;
+  const std::optional<BACovariance> cov =
+      EstimateBACovariance(cov_options, reconstruction, *ceres_ba);
+
+  ASSERT_TRUE(cov.has_value());
+  for (const auto& [point3D_id, point3D] : reconstruction.Points3D()) {
+    EXPECT_TRUE(cov->GetPointCov(point3D_id).has_value());
+  }
+}
+
 }  // namespace
 }  // namespace colmap

@@ -410,8 +410,12 @@ std::vector<PoseParam> GetPoseParams(const Reconstruction& reconstruction,
     if (!image.HasPose()) {
       continue;  // no pose, so no parameter block in the problem either
     }
-    // TODO(jsch): Add support for non-trivial frames.
-    THROW_CHECK(image.IsRefInFrame());
+    if (!image.IsRefInFrame()) {
+      // Shares its frame's rig_from_world, which the frame's reference image
+      // already contributes; a second entry would collide in the image-keyed
+      // offset table below.
+      continue;
+    }
     const Rigid3d& cam_from_world = image.FramePtr()->RigFromWorld();
     if (problem.HasParameterBlock(cam_from_world.params.data()) &&
         !problem.IsParameterBlockConstant(
